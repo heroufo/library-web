@@ -50,10 +50,13 @@
   .meta-line { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
   .meta-line b { color: var(--text); }
 
-  /* 封面墙 */
+  /* 封面墙：宽屏每行 9 本，窄屏自动降列 */
   .grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 18px;
+    display: grid; grid-template-columns: repeat(9, 1fr); gap: 14px;
   }
+  @media (max-width: 1400px) { .grid { grid-template-columns: repeat(6, 1fr); } }
+  @media (max-width: 900px)  { .grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 480px)  { .grid { grid-template-columns: repeat(2, 1fr); } }
   .book { cursor: pointer; transition: transform .12s ease; }
   .book:hover { transform: translateY(-3px); }
   .cover-wrap {
