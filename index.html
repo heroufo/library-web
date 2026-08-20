@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>霍格沃茨图书馆 · 在线浏览</title>
+<style>
+  :root {
+    --bg: #0e1117;
+    --panel: #141922;
+    --card: #1a2130;
+    --border: #2a3346;
+    --text: #e6e8ee;
+    --muted: #8b93a7;
+    --accent: #818cf8;
+    --green: #4ade80;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", "Microsoft YaHei", -apple-system, sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 12px 24px;
+    background: rgba(14,17,23,.92); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 17px; }
+  .logo svg { flex-shrink: 0; }
+  .logo .sub { font-size: 11.5px; color: var(--muted); font-weight: 400; }
+  .search { flex: 1; min-width: 200px; display: flex; gap: 8px; }
+  .search input {
+    flex: 1; background: var(--panel); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 7px 12px; font-size: 13px; outline: none;
+  }
+  .search input:focus { border-color: var(--accent); }
+  select, .btn {
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 7px 10px; font-size: 13px; cursor: pointer; outline: none;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.active { background: var(--accent); color: #0d1012; border-color: var(--accent); font-weight: 500; }
+  .main { max-width: 1280px; margin: 0 auto; padding: 20px 24px 60px; }
+  .meta-line { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
+  .meta-line b { color: var(--text); }
+
+  /* 封面墙 */
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 18px;
+  }
+  .book { cursor: pointer; transition: transform .12s ease; }
+  .book:hover { transform: translateY(-3px); }
+  .cover-wrap {
+    position: relative; aspect-ratio: 2/3; border-radius: var(--radius);
+    overflow: hidden; background: var(--card); border: 1px solid var(--border);
+  }
+  .cover-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cover-wrap .no-cover {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    font-size: 34px; color: var(--muted); background: linear-gradient(160deg, var(--panel), var(--card));
+  }
+  .cover-wrap .status-badge {
+    position: absolute; top: 6px; right: 6px; font-size: 10.5px; padding: 2px 8px;
+    border-radius: 999px; background: rgba(14,17,23,.78); color: var(--green);
+    border: 1px solid rgba(74,222,128,.35);
+  }
+  .book .bt { font-size: 13px; font-weight: 500; margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .book .ba { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 表格 */
+  .tbl-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 860px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  th { color: var(--muted); font-weight: 400; font-size: 12px; white-space: nowrap; position: sticky; top: 0; background: var(--card); }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--text); }
+  tbody tr:hover { background: rgba(129,140,248,.06); }
+  td a { color: var(--text); text-decoration: none; }
+  .t-cover img { width: 34px; height: 48px; object-fit: cover; border-radius: 4px; display: block; }
+  .t-no-cover { width: 34px; height: 48px; border-radius: 4px; background: var(--panel); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 16px; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 999px; }
+  .badge.read { background: rgba(74,222,128,.12); color: var(--green); border: 1px solid rgba(74,222,128,.3); }
+  .badge.reading { background: rgba(129,140,248,.12); color: var(--accent); border: 1px solid rgba(129,140,248,.3); }
+  .badge.unread { background: rgba(139,147,167,.12); color: var(--muted); border: 1px solid rgba(139,147,167,.3); }
+  .badge.paused { background: rgba(251,191,36,.12); color: var(--amber); border: 1px solid rgba(251,191,36,.3); }
+  .stars { color: var(--amber); font-size: 12px; }
+
+  /* 分页 */
+  .pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .pager .info { color: var(--muted); font-size: 12.5px; }
+  .pager .pages { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pager button {
+    min-width: 30px; height: 30px; padding: 0 8px; border-radius: 7px;
+    background: var(--panel); border: 1px solid var(--border); color: var(--muted);
+    font-size: 12.5px; cursor: pointer;
+  }
+  .pager button.cur { background: var(--accent); color: #0d1012; border-color: var(--accent); font-weight: 500; }
+  .pager button:disabled { opacity: .4; cursor: default; }
+
+  .empty { text-align: center; color: var(--muted); padding: 70px 0; font-size: 14px; }
+  .empty .big { font-size: 48px; margin-bottom: 10px; }
+
+  /* 详情弹层 */
+  .modal-mask {
+    position: fixed; inset: 0; z-index: 100; background: rgba(8,10,14,.7);
+    display: none; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto;
+  }
+  .modal-mask.open { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    max-width: 760px; width: 100%; padding: 24px;
+  }
+  .modal-head { display: flex; gap: 18px; }
+  .modal-cover { width: 128px; aspect-ratio: 2/3; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); flex-shrink: 0; }
+  .modal-cover.no-cover { display: flex; align-items: center; justify-content: center; font-size: 40px; color: var(--muted); background: var(--card); }
+  .modal-title { font-size: 19px; font-weight: 500; line-height: 1.4; }
+  .modal-sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .modal-auth { color: var(--accent); margin-top: 8px; font-size: 13.5px; }
+  .modal-rate { color: var(--amber); margin-top: 6px; }
+  .modal-close {
+    margin-left: auto; background: transparent; border: none; color: var(--muted);
+    font-size: 22px; cursor: pointer; line-height: 1; align-self: flex-start;
+  }
+  .modal-close:hover { color: var(--text); }
+  .kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 18px; margin: 16px 0; }
+  .kv .item .k { font-size: 11px; color: var(--muted); }
+  .kv .item .v { font-size: 13px; margin-top: 1px; }
+  .tag {
+    display: inline-block; font-size: 11.5px; padding: 2px 10px; border-radius: 999px;
+    background: rgba(74,222,128,.08); color: var(--green); border: 1px solid rgba(74,222,128,.25);
+    margin: 2px 5px 2px 0;
+  }
+  .shelf-chip {
+    display: inline-block; font-size: 11.5px; padding: 2px 10px; border-radius: 999px;
+    background: rgba(129,140,248,.1); color: var(--accent); border: 1px solid rgba(129,140,248,.3);
+    margin: 2px 5px 2px 0;
+  }
+  .desc { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; font-size: 13.5px; color: var(--text); }
+  .desc .dh { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+  .desc p { margin: 0; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px; border-top: 1px solid var(--border); }
+  @media (max-width: 640px) {
+    .grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 12px; }
+    .modal-head { flex-direction: column; }
+    .modal-cover { width: 96px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="4" width="7" height="16" rx="1.5" fill="#818cf8"/>
+      <rect x="14" y="4" width="7" height="16" rx="1.5" fill="#4ade80"/>
+      <path d="M10 4v16" stroke="#0e1117" stroke-width="1.2"/>
+    </svg>
+    <span>霍格沃茨图书馆</span>
+    <span class="sub">在线浏览 · 只读版</span>
+  </div>
+  <div class="search">
+    <input id="q" type="text" placeholder="搜索书名 / 作者 / 出版社…">
+    <select id="sort">
+      <option value="added:desc">入库时间 新→旧</option>
+      <option value="added:asc">入库时间 旧→新</option>
+      <option value="title:asc">书名 A→Z</option>
+      <option value="title:desc">书名 Z→A</option>
+      <option value="author:asc">作者</option>
+      <option value="publisher:asc">出版社</option>
+      <option value="year:desc">出版年 新→旧</option>
+      <option value="rating:desc">评分 高→低</option>
+    </select>
+    <button class="btn active" id="viewCards">封面墙</button>
+    <button class="btn" id="viewTable">表格</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="meta-line" id="meta">正在加载书库数据…</div>
+  <div id="content"></div>
+  <div class="pager" id="pager" style="display:none">
+    <span class="info" id="pagerInfo"></span>
+    <div class="pages" id="pagerPages"></div>
+  </div>
+</div>
+
+<div class="modal-mask" id="modal">
+  <div class="modal">
+    <div style="display:flex;align-items:flex-start">
+      <h2 class="modal-title" id="mTitle" style="font-size:19px;font-weight:500"></h2>
+      <button class="modal-close" id="mClose" title="关闭">×</button>
+    </div>
+    <div class="modal-head" style="margin-top:14px">
+      <div id="mCover"></div>
+      <div style="flex:1;min-width:0">
+        <div class="modal-sub" id="mSubtitle"></div>
+        <div class="modal-auth" id="mAuthor"></div>
+        <div class="modal-rate" id="mRating"></div>
+        <div class="kv" id="mKv"></div>
+        <div id="mTags"></div>
+        <div id="mShelves"></div>
+      </div>
+    </div>
+    <div class="desc" id="mDesc" style="display:none">
+      <div class="dh">简介</div>
+      <p id="mDescText"></p>
+    </div>
+  </div>
+</div>
+
+<footer>数据由「霍格沃茨图书馆」本地程序导出 · 页面为只读浏览版</footer>
+
+<script>
+var STATE = { books: [], view: 'cards', q: '', sort: 'added:desc', page: 1, per: 108 };
+var SHELVES = [];
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function coverUrl(b) {
+  if (!b.cover_path) return null;
+  return 'data/covers/' + b.cover_path.split(/[\\/]/).pop();
+}
+function statusCls(s) {
+  return { '已读': 'read', '在读': 'reading', '未读': 'unread', '搁置': 'paused' }[s] || 'unread';
+}
+function stars(n) {
+  n = Number(n) || 0;
+  var s = '';
+  for (var i = 0; i < 5; i++) s += i < n ? '★' : '☆';
+  return s;
+}
+function fmtDate(t) { return t ? String(t).slice(0, 10) : ''; }
+
+function filtered() {
+  var q = STATE.q.trim().toLowerCase();
+  var arr = STATE.books.filter(function (b) {
+    if (!q) return true;
+    return [b.title, b.subtitle, b.author, b.publisher].some(function (f) {
+      return f && String(f).toLowerCase().indexOf(q) !== -1;
+    });
+  });
+  var parts = STATE.sort.split(':');
+  var key = parts[0], dir = parts[1] === 'asc' ? 1 : -1;
+  arr.sort(function (a, b) {
+    var va = a[key], vb = b[key];
+    if (key === 'rating' || key === 'year') { va = Number(va) || 0; vb = Number(vb) || 0; }
+    else { va = String(va == null ? '' : va); vb = String(vb == null ? '' : vb); }
+    if (va < vb) return -1 * dir;
+    if (va > vb) return 1 * dir;
+    return 0;
+  });
+  return arr;
+}
+
+function render() {
+  var arr = filtered();
+  var totalPages = Math.max(1, Math.ceil(arr.length / STATE.per));
+  if (STATE.page > totalPages) STATE.page = totalPages;
+  var start = (STATE.page - 1) * STATE.per;
+  var pageBooks = arr.slice(start, start + STATE.per);
+
+  document.getElementById('meta').innerHTML =
+    '共 <b>' + STATE.books.length + '</b> 本 · 当前显示 <b>' + arr.length + '</b> 本' +
+    (STATE.q ? '（搜索「' + esc(STATE.q) + '」）' : '') +
+    ' · 第 ' + STATE.page + ' / ' + totalPages + ' 页 · 每页 ' + STATE.per + ' 本';
+
+  var c = document.getElementById('content');
+  if (!arr.length) {
+    c.innerHTML = '<div class="empty"><div class="big">📭</div>没有找到匹配的书籍</div>';
+    document.getElementById('pager').style.display = 'none';
+    return;
+  }
+  if (STATE.view === 'cards') renderCards(c, pageBooks);
+  else renderTable(c, pageBooks);
+  renderPager(totalPages);
+}
+
+function renderCards(c, list) {
+  c.innerHTML = '<div class="grid">' + list.map(function (b) {
+    var cov = coverUrl(b);
+    return '<div class="book" onclick="openDetail(\'' + b.book_id + '\')">' +
+      '<div class="cover-wrap">' +
+      (cov ? '<img loading="lazy" src="' + esc(cov) + '" alt="" onerror="this.outerHTML=\'<div class=no-cover>📕</div>\'">'
+           : '<div class="no-cover">📕</div>') +
+      (b.status && b.status !== '未读' ? '<span class="status-badge">' + esc(b.status) + '</span>' : '') +
+      '</div>' +
+      '<div class="bt">' + esc(b.title) + '</div>' +
+      '<div class="ba">' + esc(b.author || '佚名') + '</div>' +
+      '</div>';
+  }).join('') + '</div>';
+}
+
+function renderTable(c, list) {
+  var head = '<tr>' +
+    '<th>封面</th><th class="sortable" data-k="title">书名</th><th class="sortable" data-k="author">作者</th>' +
+    '<th>丛书</th><th class="sortable" data-k="publisher">出版社</th><th class="sortable" data-k="year">出版年</th>' +
+    '<th class="sortable" data-k="rating">评分</th><th>状态</th><th>操作</th></tr>';
+  var rows = list.map(function (b) {
+    var cov = coverUrl(b);
+    return '<tr>' +
+      '<td class="t-cover">' + (cov
+        ? '<img loading="lazy" src="' + esc(cov) + '" alt="" onerror="this.outerHTML=\'<div class=t-no-cover>📕</div>\'">'
+        : '<div class="t-no-cover">📕</div>') + '</td>' +
+      '<td><a onclick="openDetail(\'' + b.book_id + '\')" style="cursor:pointer;font-weight:500">' + esc(b.title) + '</a>' +
+      (b.subtitle ? '<div style="color:var(--muted);font-size:11.5px">' + esc(b.subtitle) + '</div>' : '') + '</td>' +
+      '<td>' + esc(b.author || '—') + '</td>' +
+      '<td>' + esc(b.series ? b.series + (b.series_number ? ' · 第' + b.series_number + '卷' : '') : '—') + '</td>' +
+      '<td>' + esc(b.publisher || '—') + '</td>' +
+      '<td>' + esc(b.publish_year || '—') + '</td>' +
+      '<td>' + (b.rating ? '<span class="stars">' + stars(b.rating) + '</span>' : '—') + '</td>' +
+      '<td><span class="badge ' + statusCls(b.status) + '">' + esc(b.status || '未读') + '</span></td>' +
+      '<td><button class="btn" onclick="openDetail(\'' + b.book_id + '\')">详情</button></td>' +
+      '</tr>';
+  }).join('');
+  c.innerHTML = '<div class="tbl-wrap"><table><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div>';
+  var ths = c.querySelectorAll('th.sortable');
+  for (var i = 0; i < ths.length; i++) {
+    ths[i].addEventListener('click', function () {
+      var k = this.getAttribute('data-k');
+      var map = { title: 'title', author: 'author', publisher: 'publisher', year: 'publish_year', rating: 'rating' };
+      var field = map[k] || k;
+      if (STATE.sort.split(':')[0] === field) {
+        STATE.sort = field + ':' + (STATE.sort.split(':')[1] === 'asc' ? 'desc' : 'asc');
+      } else {
+        STATE.sort = field + ':asc';
+      }
+      document.getElementById('sort').value = STATE.sort;
+      STATE.page = 1;
+      render();
+    });
+  }
+}
+
+function renderPager(totalPages) {
+  var p = document.getElementById('pager');
+  p.style.display = 'flex';
+  document.getElementById('pagerInfo').textContent =
+    '第 ' + STATE.page + ' / ' + totalPages + ' 页 · 共 ' + filtered().length + ' 本';
+  var el = document.getElementById('pagerPages');
+  var html = '<button ' + (STATE.page <= 1 ? 'disabled' : '') + ' onclick="go(1)">«</button>';
+  var win = 2;
+  for (var i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= STATE.page - win && i <= STATE.page + win)) {
+      html += '<button class="' + (i === STATE.page ? 'cur' : '') + '" onclick="go(' + i + ')">' + i + '</button>';
+    } else if (i === 2 || i === totalPages - 1) {
+      html += '<button disabled>…</button>';
+    }
+  }
+  html += '<button ' + (STATE.page >= totalPages ? 'disabled' : '') + ' onclick="go(' + totalPages + ')">»</button>';
+  el.innerHTML = html;
+}
+function go(n) { STATE.page = n; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+
+function openDetail(id) {
+  var b = STATE.books.find(function (x) { return x.book_id === id; });
+  if (!b) return;
+  document.getElementById('mTitle').textContent = b.title || '';
+  document.getElementById('mSubtitle').textContent = b.subtitle || '';
+  document.getElementById('mAuthor').textContent = b.author ? '作者：' + b.author : '';
+  document.getElementById('mRating').innerHTML = b.rating ? stars(b.rating) : '';
+  var cov = coverUrl(b);
+  document.getElementById('mCover').innerHTML = cov
+    ? '<img class="modal-cover" src="' + esc(cov) + '" alt="" onerror="this.outerHTML=\'<div class=modal-cover no-cover>📕</div>\'">'
+    : '<div class="modal-cover no-cover">📕</div>';
+
+  var kv = [];
+  if (b.publisher) kv.push(['出版社', esc(b.publisher)]);
+  if (b.publish_year) kv.push(['出版年', esc(b.publish_year)]);
+  if (b.series) kv.push(['丛书', esc(b.series + (b.series_number ? ' · 第' + b.series_number + '卷' : ''))]);
+  kv.push(['状态', esc(b.status || '未读')]);
+  kv.push(['入库时间', esc(fmtDate(b.added_time))]);
+  document.getElementById('mKv').innerHTML = kv.map(function (x) {
+    return '<div class="item"><div class="k">' + x[0] + '</div><div class="v">' + x[1] + '</div></div>';
+  }).join('');
+
+  document.getElementById('mTags').innerHTML = (b.tags && b.tags.length)
+    ? b.tags.map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') : '';
+
+  var member = SHELVES.filter(function (s) {
+    return (s.book_ids || []).indexOf(b.book_id) !== -1;
+  });
+  document.getElementById('mShelves').innerHTML = member.length
+    ? member.map(function (s) { return '<span class="shelf-chip">' + (s.kind === 'smart' ? '✨ ' : '📚 ') + esc(s.name) + '</span>'; }).join('')
+    : '';
+
+  var desc = b.blurb || b.notes || '';
+  var d = document.getElementById('mDesc');
+  d.style.display = desc ? 'block' : 'none';
+  document.getElementById('mDescText').textContent = desc;
+
+  document.getElementById('modal').classList.add('open');
+}
+document.getElementById('mClose').addEventListener('click', function () {
+  document.getElementById('modal').classList.remove('open');
+});
+document.getElementById('modal').addEventListener('click', function (e) {
+  if (e.target === this) this.classList.remove('open');
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') document.getElementById('modal').classList.remove('open');
+});
+
+document.getElementById('q').addEventListener('input', function () {
+  STATE.q = this.value; STATE.page = 1; render();
+});
+document.getElementById('sort').addEventListener('change', function () {
+  STATE.sort = this.value; STATE.page = 1; render();
+});
+document.getElementById('viewCards').addEventListener('click', function () {
+  STATE.view = 'cards'; this.classList.add('active');
+  document.getElementById('viewTable').classList.remove('active');
+  STATE.page = 1; render();
+});
+document.getElementById('viewTable').addEventListener('click', function () {
+  STATE.view = 'table'; this.classList.add('active');
+  document.getElementById('viewCards').classList.remove('active');
+  STATE.page = 1; render();
+});
+
+fetch('data/library.json').then(function (r) { return r.json(); }).then(function (data) {
+  STATE.books = data.books || [];
+  SHELVES = data.shelves || [];
+  render();
+}).catch(function () {
+  document.getElementById('meta').textContent = '书库数据加载失败（library.json 缺失或格式错误）';
+});
+</script>
+</body>
+</html>
