@@ -252,10 +252,13 @@ function filtered() {
     });
   });
   var parts = STATE.sort.split(':');
-  var key = parts[0], dir = parts[1] === 'asc' ? 1 : -1;
+  var dir = parts[1] === 'asc' ? 1 : -1;
+  // 下拉选项名 -> 实际数据字段名（added→added_time, year→publish_year）
+  var fieldMap = { added: 'added_time', year: 'publish_year' };
+  var key = fieldMap[parts[0]] || parts[0];
   arr.sort(function (a, b) {
     var va = a[key], vb = b[key];
-    if (key === 'rating' || key === 'year') { va = Number(va) || 0; vb = Number(vb) || 0; }
+    if (key === 'rating' || key === 'publish_year') { va = Number(va) || 0; vb = Number(vb) || 0; }
     else { va = String(va == null ? '' : va); vb = String(vb == null ? '' : vb); }
     if (va < vb) return -1 * dir;
     if (va > vb) return 1 * dir;
