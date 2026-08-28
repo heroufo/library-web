@@ -371,7 +371,7 @@ function openDetail(id) {
   if (!b) return;
   document.getElementById('mTitle').textContent = b.title || '';
   document.getElementById('mSubtitle').textContent = b.subtitle || '';
-  document.getElementById('mAuthor').textContent = b.author ? '作者：' + b.author : '';
+  document.getElementById('mAuthor').textContent = b.author ? '作者：' + b.author + (b.author_nationality ? '（' + b.author_nationality + '）' : '') : '';
   document.getElementById('mRating').innerHTML = b.rating ? stars(b.rating) : '';
   var cov = coverUrl(b);
   document.getElementById('mCover').innerHTML = cov
